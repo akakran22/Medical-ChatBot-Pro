@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical AI Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏥</text></svg>">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <i class="fas fa-hospital"></i>
+                <span>Medical AI</span>
+            </div>
+            <button id="new-chat-btn" class="new-chat-btn">
+                <i class="fas fa-plus"></i>
+                New Chat
+            </button>
+        </div>
+        
+        <div class="chat-history-container">
+            {% if session.chat_history %}
+                <div class="chat-history-title">Recent Conversations</div>
+                {% for chat in session.chat_history[::-1][:15] %}
+                <div class="chat-history-item">
+                    <div class="chat-preview">
+                        <i class="fas fa-comment-medical"></i>
+                        <div class="chat-text">
+                            <div class="chat-title">{{ chat.query[:60] }}{% if chat.query|length > 60 %}...{% endif %}</div>
+                            <div class="chat-time">{{ chat.timestamp }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                <div class="clear-history-container">
+                    <a href="{{ url_for('clear_history') }}" class="clear-history-btn">
+                        <i class="fas fa-trash"></i>
+                        Clear History
+                    </a>
+                </div>
+            {% else %}
+                <div class="empty-history">
+                    <i class="fas fa-comments"></i>
+                    <p>No conversations yet</p>
+                    <span>Start by asking a medical question</span>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="main-content" class="main-content">
+        <!-- Header Bar -->
+        <div class="header-bar">
+            <button id="sidebar-toggle" class="sidebar-toggle">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="header-title">
+                <h1>Medical AI Assistant</h1>
+                <p>AI-powered medical information and research</p>
+            </div>
+        </div>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-message flash-{{ category }}">
+                        <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' }}"></i>
+                        {{ message }}
+                        <button class="flash-close">&times;</button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Chat Container -->
+        <div class="chat-container">
+            {% if result %}
+                <!-- Response Display -->
+                <div class="message-container">
+                    <!-- User Message -->
+                    <div class="message user-message">
+                        <div class="message-avatar user-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="message-content">
+                            <div class="message-text">{{ result.query }}</div>
+                        </div>
+                    </div>
+
+                    <!-- AI Response -->
+                    <div class="message ai-message">
+                        <div class="message-avatar ai-avatar">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="message-content">
+                            <div class="message-text">{{ result.final_response | replace('\n', '<br>') | safe }}</div>
+                            
+                            <!-- Response Actions -->
+                            <div class="message-actions">
+                                <button class="action-btn copy-btn" onclick="copyResponse(this)">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                                <button class="action-btn like-btn">
+                                    <i class="fas fa-thumbs-up"></i>
+                                </button>
+                                <button class="action-btn dislike-btn">
+                                    <i class="fas fa-thumbs-down"></i>
+                                </button>
+                            </div>
+
+                            <!-- Analytics -->
+                            <div class="response-analytics">
+                                <div class="analytics-item">
+                                    <span class="analytics-label">Quality Score</span>
+                                    <span class="analytics-value">{{ "%.1f" | format(result.critic_score) }}/10</span>
+                                </div>
+                                <div class="analytics-item">
+                                    <span class="analytics-label">Processing Time</span>
+                                    <span class="analytics-value">{{ "%.1f" | format(result.processing_time) }}s</span>
+                                </div>
+                                <div class="analytics-item">
+                                    <span class="analytics-label">Sources</span>
+                                    <span class="analytics-value">{{ (result.vector_results | length) + (result.web_results | length) }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Sources -->
+                            {% if result.vector_results or result.web_results %}
+                            <div class="sources-container">
+                                <button class="sources-toggle" onclick="toggleSources(this)">
+                                    <i class="fas fa-book"></i>
+                                    View Sources
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                                <div class="sources-content">
+                                    {% if result.vector_results %}
+                                        <div class="source-category">
+                                            <h4><i class="fas fa-database"></i> Knowledge Base</h4>
+                                            {% for item in result.vector_results[:3] %}
+                                            <div class="source-item">
+                                                <div class="source-header">
+                                                    <span class="source-title">{{ item.source }}</span>
+                                                    <span class="source-score">{{ "%.0f" | format(item.score * 100) }}% match</span>
+                                                </div>
+                                                <div class="source-text">{{ item.text[:200] }}...</div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    
+                                    {% if result.web_results %}
+                                        <div class="source-category">
+                                            <h4><i class="fas fa-globe"></i> Web Sources</h4>
+                                            {% for item in result.web_results %}
+                                            <div class="source-item">
+                                                <div class="source-header">
+                                                    <span class="source-title">{{ item.title }}</span>
+                                                    <a href="{{ item.url }}" target="_blank" class="source-link">
+                                                        <i class="fas fa-external-link-alt"></i>
+                                                    </a>
+                                                </div>
+                                                <div class="source-text">{{ item.content[:200] }}...</div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Medical Disclaimer -->
+                            <div class="medical-disclaimer">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>Medical Disclaimer:</strong> This information is for educational purposes only and should not replace professional medical advice. Always consult with a qualified healthcare provider.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <!-- Welcome Screen -->
+                <div class="welcome-screen">
+                    <div class="welcome-content">
+                        <div class="welcome-icon">
+                            <i class="fas fa-stethoscope"></i>
+                        </div>
+                        <h2>How can I help you today?</h2>
+                        <p>Ask me about medical conditions, symptoms, treatments, or general health questions.</p>
+                        
+                        <div class="example-questions">
+                            <div class="example-item" onclick="fillExample(this)">
+                                <i class="fas fa-heart"></i>
+                                <span>What are the symptoms of high blood pressure?</span>
+                            </div>
+                            <div class="example-item" onclick="fillExample(this)">
+                                <i class="fas fa-pills"></i>
+                                <span>How does diabetes affect the body?</span>
+                            </div>
+                            <div class="example-item" onclick="fillExample(this)">
+                                <i class="fas fa-brain"></i>
+                                <span>What are the early signs of dementia?</span>
+                            </div>
+                            <div class="example-item" onclick="fillExample(this)">
+                                <i class="fas fa-lungs"></i>
+                                <span>How to manage asthma symptoms?</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Input Area -->
+        <div class="input-container">
+            <form method="POST" action="{{ url_for('chat') }}" class="input-form">
+                <div class="input-wrapper">
+                    <textarea 
+                        id="message-input" 
+                        name="query" 
+                        placeholder="Ask a medical question..."
+                        rows="1"
+                        required>{{ request.form.query if request.form.query }}</textarea>
+                    <button type="submit" class="send-btn" id="send-btn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </form>
+            <div class="input-footer">
+                Medical AI can make mistakes. Check important info with healthcare professionals.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sidebar toggle
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('main-content');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('sidebar-collapsed');
+        });
+
+        // Auto-resize textarea
+        const messageInput = document.getElementById('message-input');
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        // Form submission with loading state
+        const inputForm = document.querySelector('.input-form');
+        const sendBtn = document.getElementById('send-btn');
+
+        inputForm.addEventListener('submit', function(e) {
+            const query = messageInput.value.trim();
+            if (!query) {
+                e.preventDefault();
+                return;
+            }
+            
+            // Show loading state
+            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            sendBtn.disabled = true;
+            
+            // Add loading message to chat
+            const chatContainer = document.querySelector('.chat-container');
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'loading-message';
+            loadingDiv.innerHTML = `
+                <div class="message-container">
+                    <div class="message user-message">
+                        <div class="message-avatar user-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="message-content">
+                            <div class="message-text">${query}</div>
+                        </div>
+                    </div>
+                    <div class="message ai-message">
+                        <div class="message-avatar ai-avatar">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="message-content">
+                            <div class="loading-dots">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                            <div class="loading-text">
+                                <span class="step">🔍 Searching medical database...</span>
+                                <span class="step hidden">🌐 Searching web sources...</span>
+                                <span class="step hidden">🤖 Generating response...</span>
+                                <span class="step hidden">🎯 Evaluating quality...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Clear welcome screen if present
+            const welcomeScreen = document.querySelector('.welcome-screen');
+            if (welcomeScreen) {
+                welcomeScreen.remove();
+            }
+            
+            chatContainer.appendChild(loadingDiv);
+            
+            // Animate loading steps
+            let stepIndex = 0;
+            const steps = loadingDiv.querySelectorAll('.step');
+            const stepInterval = setInterval(() => {
+                if (stepIndex > 0) {
+                    steps[stepIndex - 1].classList.add('hidden');
+                }
+                if (stepIndex < steps.length) {
+                    steps[stepIndex].classList.remove('hidden');
+                    stepIndex++;
+                } else {
+                    clearInterval(stepInterval);
+                }
+            }, 2000);
+        });
+
+        // Copy response function
+        function copyResponse(btn) {
+            const messageText = btn.closest('.message-content').querySelector('.message-text');
+            const text = messageText.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                btn.innerHTML = '<i class="fas fa-check"></i>';
+                setTimeout(() => {
+                    btn.innerHTML = '<i class="fas fa-copy"></i>';
+                }, 2000);
+            });
+        }
+
+        // Toggle sources
+        function toggleSources(btn) {
+            const sourcesContent = btn.nextElementSibling;
+            const chevron = btn.querySelector('.fa-chevron-down');
+            
+            sourcesContent.classList.toggle('expanded');
+            chevron.classList.toggle('rotated');
+        }
+
+        // Fill example question
+        function fillExample(element) {
+            const text = element.querySelector('span').textContent;
+            messageInput.value = text;
+            messageInput.focus();
+            messageInput.style.height = 'auto';
+            messageInput.style.height = messageInput.scrollHeight + 'px';
+        }
+
+        // New chat button
+        document.getElementById('new-chat-btn').addEventListener('click', () => {
+            window.location.href = '/';
+        });
+
+        // Close flash messages
+        document.querySelectorAll('.flash-close').forEach(btn => {
+            btn.addEventListener('click', () => {
+                btn.parentElement.remove();
+            });
+        });
+
+        // Auto-hide flash messages
+        setTimeout(() => {
+            document.querySelectorAll('.flash-message').forEach(msg => {
+                msg.style.opacity = '0';
+                msg.style.transform = 'translateY(-10px)';
+                setTimeout(() => msg.remove(), 300);
+            });
+        }, 5000);
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                inputForm.submit();
+            }
+            if (e.key === 'Escape') {
+                messageInput.value = '';
+                messageInput.style.height = 'auto';
+            }
+        });
+
+        // Mobile responsive
+        if (window.innerWidth <= 768) {
+            sidebar.classList.add('collapsed');
+            mainContent.classList.add('sidebar-collapsed');
+        }
+
+        window.addEventListener('resize', () => {
+            if (window.innerWidth <= 768) {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('sidebar-collapsed');
+            } else if (window.innerWidth > 768) {
+                sidebar.classList.remove('collapsed');
+                mainContent.classList.remove('sidebar-collapsed');
+            }
+        });
+
+        // Scroll to bottom on new message
+        function scrollToBottom() {
+            const chatContainer = document.querySelector('.chat-container');
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Auto scroll when new content is added
+        if (document.querySelector('.message-container')) {
+            scrollToBottom();
+        }
+    </script>
+</body>
+</html>
