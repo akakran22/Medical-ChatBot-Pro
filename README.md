@@ -14,9 +14,7 @@ A comprehensive medical information system that combines vector database retriev
 
 ## Architecture
 
-```
-User Query → Vector Database Search → Web Search → LLM Response Generation → Critic Evaluation → Final Response
-```
+![Alt text](images/architecture.png)
 
 ### Components
 
