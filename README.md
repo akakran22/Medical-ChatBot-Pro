@@ -50,8 +50,8 @@ A comprehensive medical information system that combines vector database retriev
 
 ### Prerequisites
 
-- Python 3.8+
-- API keys for required services (see Configuration section)
+- Python 3.8+ or (3.10) - suggested
+- API keys for required services should be stored in .env file
 
 ### Setup
 
