@@ -57,8 +57,8 @@ A comprehensive medical information system that combines vector database retriev
 
 1. **Clone the repository**
    ```bash
-   git clone <your-repo-url>
-   cd medical-ai-assistant
+   git clone https://github.com/akakran22/Medical-ChatBot-Pro.git
+   cd Medical-ChatBot-Pro
    ```
 
 2. **Create virtual environment**
@@ -250,22 +250,7 @@ Core dependencies include:
 
 See `requirements.txt` for complete dependency list.
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License. See LICENSE file for details.
-
 ## Disclaimer
 
 This medical AI assistant is for informational and educational purposes only. It should not be used as a substitute for professional medical advice, diagnosis, or treatment. Always consult with qualified healthcare providers for medical concerns.
 
-## Support
-
-For issues, questions, or contributions, please open an issue on GitHub or contact the development team.
