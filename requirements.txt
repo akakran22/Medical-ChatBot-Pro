@@ -1,14 +1,14 @@
 setuptools>=65
 wheel
 gunicorn==21.2.0
-
 Flask==2.3.3
 python-dotenv==1.0.0
 PyPDF2==3.0.1
 langchain==0.0.340
-numpy==1.26.4      
+numpy==1.26.4
 qdrant-client==1.7.3
 requests==2.31.0
 groq==0.4.1
 tavily-python==0.3.3
 Werkzeug==2.3.7
+PyMuPDF==1.23.26
