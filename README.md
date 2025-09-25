@@ -14,7 +14,7 @@ A comprehensive medical information system that combines vector database retriev
 
 ## Architecture
 
-![Architecture](image/architecture.png)
+![Architecture](image/architecture-d.png)
 
 ### Components
 
